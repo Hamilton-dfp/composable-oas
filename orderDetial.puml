@@ -1,0 +1,36 @@
+@startuml
+
+skinparam componentStyle rectangle
+
+together {
+  component "POST /orders/{orderId}/details" as create <<create>>
+  component "GET /orders/{orderId}" as list <<list>>
+  component "GET /orders/{orderId}/details/{id}" as get <<retrieve>>
+  component "PATCH /orders/{orderId}/details/{id}" as update <<update>>
+}
+
+create -[hidden]-> list
+list -[hidden]-> get
+get -[hidden]-> update
+
+map orderId {
+  id => uuid
+}
+
+map orderUpdate {
+  quantity => number
+}
+
+map orderCreate {
+  allOf => orderUpdate
+}
+
+map detailId {
+  id => uui
+}
+
+map detailUpdate {
+  quantity => number
+}
+
+@enduml

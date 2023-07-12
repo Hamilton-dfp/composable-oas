@@ -1,0 +1,45 @@
+@startuml
+
+skinparam componentStyle rectangle
+together {
+  component "POST /orders" as create <<create>>
+  component "GET /orders" as list <<list>>
+  component "GET /orders/{id}" as get <<retrieve>>
+  component "PATCH /orders/{id}" as update <<update>>
+}
+
+create -[hidden]-> list
+list -[hidden]-> get
+get -[hidden]-> update
+
+map id {
+  id => uuid
+}
+
+map orderUpdate {
+  quantity => number
+}
+
+map orderCreate {
+  allOf => orderUpdate
+  item => uuid
+}
+
+map order {
+  allOf => <font color="blue">id</font>, orderCreate
+  status => string
+  createTime => date
+}
+
+id o- order: allOf
+orderCreate o- order: allOf
+
+orderUpdate o- orderCreate: allOf
+
+orderCreate o- create: allOf
+order o- list: allOf
+order o- get: allOf
+orderUpdate o- update: allOf
+
+
+@enduml
