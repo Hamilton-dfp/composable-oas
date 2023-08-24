@@ -1,0 +1,301 @@
+openapi: '3.0.2'
+info:
+  title: | 
+    Composable OAS example API.
+
+    This example accompnanies my 2023 fintech_devcon presentation Componsable API first design for REST with OpenAPI. The composability is defined in the schemas in the components section.
+  version: '1.0'
+
+paths:
+  /orders:
+    get:
+      summary: List Orders
+      description: Retrieve the list of orders.
+      operationId: listOrders
+      responses:
+        '200':
+          $ref: "#/components/responses/listOrders"
+
+    post:
+      summary: Create Order
+      description: Create a new order with the given properties.
+      operationId: createOrder
+      requestBody:
+        $ref: '#/components/requestBodies/createOrder'
+      responses:
+        '201':
+          $ref: '#/components/responses/createOrder'
+  
+  /orders/{orderId}:
+    parameters:
+      - $ref: '#/components/parameters/orderIdPath'
+
+    patch:
+      summary: Update Order
+      description: Update the mutable properties of an order.
+      operationId: updateOrder
+      requestBody:
+        $ref: '#/components/requestBodies/updateOrder'
+      responses:
+        '204':
+          description: No Content
+
+    get:
+      summary: Get Order
+      description: Retrieve an order by id.
+      operationId: getOrder
+      responses:
+        '200':
+          $ref: '#/components/responses/getOrder'
+
+    delete:
+      summary: Delete Order
+      description: Delete an order. This will not remove it from the system.
+      operationId: deleteOrder
+      responses:
+        '204':
+          description: No Content
+    
+  /orders/{orderId}/details:
+    parameters:
+      - $ref: '#/components/parameters/orderIdPath'
+
+    post:
+      summary: Add Order Detail
+      description: Add a new detail to an order.
+      operationId: addOrderDetail
+      requestBody:
+        $ref: '#/components/requestBodies/addDetail'
+      responses:
+        '204':
+          description: No Content
+
+    delete:
+      summary: Delete Order Detail
+      description: Remove a detail from the order.
+      operationId: deleteOrderDetail.
+      responses:
+        '204':
+          description: No Content
+    
+    patch:
+      summary: Update Order Detail
+      description: Update the properties of an order detail.
+      operationId: updateOrderDetail
+      requestBody:
+        $ref: '#/components/requestBodies/updateDetail'
+      responses:
+        '204':
+          description: No Content  
+
+components:
+  schemas:
+
+    immutableAudit:
+      type: object
+      required:
+        - createTime
+        - createdBy
+      properties:
+        createTime:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+
+    audit:
+      allOf:
+        - $ref: '#/components/schemas/immutableAudit'
+        - type: object
+          required:
+            - modifyTime
+            - modifiedBy
+          properties:
+            modifyTime:
+              type: string
+              format: date-time
+            modifiedBy:
+              type: string
+
+    detailUpdate:
+      type: object
+      properties:
+        quantity:
+          type: number
+          description: If not provided, defaults to 1
+    
+    detailCreate:
+      allOf:
+        - $ref: '#/components/schemas/detailUpdate'
+        - type: object
+          required:
+            - sku
+          properties:
+            sku:
+              type: string
+              format: uuid
+
+    detailHeader:
+      allOf:
+        - $ref: '#/components/schemas/audit'
+        - $ref: '#components/schemas/detailCreate'
+        - type: object
+          required:
+            - id
+            - description
+          properties:
+            id:
+              type: string
+              format: uuid
+            description:
+              type: string
+    
+    orderUpdate:
+      type: object
+      properties:
+        isGift:
+          type: boolean
+      minProperties: 1
+
+    orderCreate:
+      allOf:
+        - $ref: '#/components/schemas/orderUpdate'
+        - type: object
+          properties:
+            coupon:
+              type: string
+
+    orderHeader:
+      allOf:
+        - $ref: '#/components/schemas/audit'
+        - $ref: '#/components/schemas/orderCreate'
+        - type: object
+          required:
+            - id
+            - status
+          properties:
+            id:
+              type: string
+              format: uuid
+            status:
+              $ref: '#/components/schemas/orderStatus'
+    
+    # Breaking out enumerated strings is not part of the pattern, but it sure is a good 
+    # idea as it makes code generation cleaner!
+    orderStatus:
+      type: string
+      enum:
+        - placed
+        - approved
+        - shipped
+        - delivered
+
+    order:
+      allOf:
+        - $ref: '#/components/schemas/orderHeader'
+        - type: object
+          required:
+            - details
+          properties:
+            details:
+              type: array
+              items:
+                $ref: '#/components/schemas/detailHeader'
+    
+    # Not sure if this is still an issue, but I have had problems with some 
+    # parser/validator combinations that struggled with the use of `allOf` in 
+    # `requestBodies`. This has lead to a practice of defining the requests composed of 
+    # multiple components in the schemas section.
+  
+    createOrderReq:
+      allOf:
+        - $ref: '#/components/schemas/orderCreate'
+        - type: object
+          required:
+            - details
+          properties:
+            details:
+              type: array
+              items:
+                $ref: '#/components/schemas/detailCreate'
+
+  requestBodies:
+
+    updateOrder:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/orderUpdate'
+    
+    createOrder:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/createOrderReq'
+            
+    addDetail:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/detailCreate'
+
+    updateDetail:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/detailUpdate'
+
+  responses:
+    
+    createOrder:
+      description: Returns the order that was created.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/orderCreate'
+
+    listOrders:
+      description: A list of all orders.
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/orderHeader'
+
+    getOrder:
+      description: The contents of a single orders.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/order'
+  
+  parameters:
+    orderIdPath:
+      name: orderId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    
+
+    
+    
+    
+
+    
+
+    
+      
+      
+                
+
+
+            
+    
+
+      
+    
+    
